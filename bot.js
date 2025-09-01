@@ -1,39 +1,29 @@
-/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-                   _ooOoo_
-                  o8888888o
-                  88" . "88
-                  (| -_- |)
-                  O\  =  /O
-               ____/`---'\____
-             .'  \\|     |//  `.
-            /  \\|||  :  |||//  \
-           /  _||||| -:- |||||-  \
-           |   | \\\  -  /// |   |
-           | \_|  ''\---/''  |   |
-           \  .-\__  `-`  ___/-. /
-         ___`. .'  /--.--\  `. . __
-      ."" '<  `.___\_<|>_/___.'  >'"".
-     | | :  `- \`.;`\ _ /`;.`/ - ` : | |
-     \  \ `-.   \_ __\ /__ _/   .-` /  /
-======`-.____`-.___\_____/___.-`____.-'======
-                   `=---='
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  PHẬT ĐỘ, CODE Không LỖI, TỐI ƯU Không BUG
-            DEVELOPER: SBT
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
-
+import dotenv from 'dotenv';
+dotenv.config();
 import { spawn } from 'child_process';
 import path from 'path';
-const cmdPath = path.join('C:', 'Windows', 'System32', 'cmd.exe');
+const cmdPath = '/usr/bin/bash';
 import { ensureLogFiles, logManagerBot } from './src/utils/io-json.js';
 
 let botProcess;
 
 function startBot() {
-    botProcess = spawn(cmdPath, ['/c', 'npm start'], {
+    botProcess = spawn(cmdPath, ['-c', 'npm start'], {
         detached: true,
-        stdio: 'ignore'
+        stdio: ['ignore', 'pipe', 'pipe'], // stdin ignore, stdout & stderr pipe
+        env: { ...process.env }
     });
+
+    botProcess.stdout.on('data', data => {
+        console.log(`[bot stdout] ${data.toString()}`);
+        logManagerBot(`[bot stdout] ${data.toString()}`);
+    });
+
+    botProcess.stderr.on('data', data => {
+        console.error(`[bot stderr] ${data.toString()}`);
+        logManagerBot(`[bot stderr] ${data.toString()}`);
+    });
+
     attachBotEvents(botProcess);
     botProcess.unref();
     logManagerBot('Bot started');
@@ -47,8 +37,13 @@ function stopBot() {
             logManagerBot('Bot stopped');
             console.log('Bot stopped');
         } catch (err) {
-            logManagerBot(`Failed to stop bot: ${err.message}`);
-            console.log('Failed to stop bot:', err.message);
+            if (err.code === 'ESRCH') {
+                logManagerBot('No such process to kill (ESRCH)');
+                console.log('No such process to kill (ESRCH)');
+            } else {
+                logManagerBot(`Failed to stop bot: ${err.message}`);
+                console.log('Failed to stop bot:', err.message);
+            }
         }
     } else {
         logManagerBot('Failed to stop bot: invalid PID');
@@ -70,26 +65,27 @@ startBot();
 
 function attachBotEvents(botProcess) {
     botProcess.on('error', (err) => {
-        logManagerBot(`Bot gặp lỗi: ${err.message}`);
-        console.error('Lỗi bot:', err.message);
+        logManagerBot(`Bot gáº·p lá»—i: ${err.message}`);
+        console.error('Lá»—i bot:', err.message);
         restartBot();
     });
 
     botProcess.on('exit', (code) => {
-        logManagerBot(`Bot đã thoát với mã: ${code}`);
-        console.log('Bot đã thoát:', code);
+        logManagerBot(`Bot Ä‘Ă£ thoĂ¡t vá»›i mĂ£: ${code}`);
+        console.log('Bot Ä‘Ă£ thoĂ¡t:', code);
         restartBot();
     });
 }
 
 setInterval(() => {
     // restartBot();
-}, 1800000);//30p
+}, 1800000); // 30 phĂºt
 
 process.on('SIGINT', () => {
-    logManagerBot('Bot stopped by user (SIGINT). Restarting...');
-    console.log('Bot stopped by user (SIGINT). Restarting...');
-    restartBot();
+    logManagerBot('Bot stopped by user (SIGINT). Exiting process...');
+    console.log('Bot stopped by user (SIGINT). Exiting process...');
+    stopBot();
+    process.exit(0);
 });
 
 process.on('SIGTERM', () => {
